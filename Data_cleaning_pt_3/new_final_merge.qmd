@@ -1,0 +1,105 @@
+---
+title: "Merge New Election and Expenditures"
+format: html
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+expenditures <- read.csv(file = "Expenditures_by_Candidates_and_Political_Committees.csv")
+```
+
+```{r Basic_cleaning}
+base_data = expenditures %>%
+# Getting rid of the report_number, origin, committee_id, filer_id, ballot_number, for_or_against, jurisdiction itemized_or_non_itemized, expenditure_date, description, recipient_name, recipient_address, URL, recipient_location, payee, and creditor, columns
+  select("id","type", "filer_name", "office", "legislative_district", "position", "party", "jurisdiction_county","jurisdiction_type", "election_year", "amount", "code", "recipient_city", "recipient_state", "recipient_zip") %>%
+  
+# Pick years 2014-2023
+  filter(election_year < 2025 & election_year > 2013)%>%
+# Filter out political committee
+  filter(type == "Candidate") %>%
+# Filter out all reports for expenditures less than a dollar
+  filter(amount > 1.00)
+```
+
+```{r Part1_naming_improvements}
+#Naming improvements
+clean_expenditures = base_data %>%
+# Make every filer name lowercase
+  mutate(filer_name = tolower(filer_name))%>%
+
+#Get rid of all text with parenthesis
+  mutate(filer_name = gsub("\\s*\\([^\\)]+\\)","",as.character(filer_name)))%>%
+ 
+# Get rid of all single hanging letters at the end  
+  mutate(filer_name = gsub("\\s[A-Z]?.$","", as.character(filer_name)))
+   
+
+```
+
+```{r}
+election_results <- read.csv(file = "Data_cleaning_pt_2/total_election_results.csv")
+```
+
+```{r}
+election_results <- rename(election_results, Office = Race)
+
+# include mayor and city council positions only(for consistency across counties)
+council_mayor_results <- election_results %>% 
+  filter(grepl("mayor|council", Office, ignore.case = TRUE))
+
+# clean up the election Office column
+lower_council_mayor_results <- council_mayor_results %>% 
+  mutate(Office = tolower(Office))
+
+clean_council_mayor_results <- lower_council_mayor_results
+
+clean_council_mayor_results$Office <- ifelse(
+  grepl("mayor", clean_council_mayor_results$Office, ignore.case = TRUE), "Mayor",
+  ifelse(
+    grepl("city|town|community", clean_council_mayor_results$Office, ignore.case = TRUE), "City Council Member",
+    ifelse(
+      grepl("county", clean_council_mayor_results$Office, ignore.case = TRUE),"County Council Member",
+      clean_council_mayor_results$Office
+    )
+  )
+)
+
+# ensure only Office column cleaned of 
+#print(length(unique(clean_council_mayor_results$Office)))
+#print(unique(clean_council_mayor_results$Office))
+#print(unique(clean_council_mayor_results$JurisdictionName))
+
+# get rid of columns not needed in building a model
+# feature will not be used in model
+clean_election_results <- clean_council_mayor_results %>% select(-c(Party, JurisdictionName))
+
+```
+
+```{r}
+clean_election_results <- clean_election_results %>%
+# Make every filer name lowercase
+  mutate(Candidate = tolower(Candidate))
+
+colnames(clean_expenditures)[3] <- "Candidate"
+
+
+clean_expenditures$Candidate <- gsub("\\s\\w+\\s", " ", clean_expenditures$Candidate)
+clean_expenditures$Candidate <- gsub("\\s\\w(?:\\.|\\s)?\\s", " ", clean_expenditures$Candidate)
+
+clean_election_results$Candidate <- gsub("\\s\\w+\\s", " ", clean_election_results$Candidate)
+clean_election_results$Candidate <- gsub("\\s\\w(?:\\.|\\s)?\\s", " ", clean_election_results$Candidate)
+```
+
+```{r join the two data sets, warning = F}
+full_data <- left_join(clean_election_results, clean_expenditures, by = "Candidate")
+full_data <- full_data %>% filter(year == election_year)
+```
+
+```{r write full data to csv}
+write.csv(full_data, "new_merged_results.csv")
+```
