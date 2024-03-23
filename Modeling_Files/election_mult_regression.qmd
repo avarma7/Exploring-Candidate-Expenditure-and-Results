@@ -1,0 +1,134 @@
+---
+title: "election_mult_regression"
+format: html
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(Metrics)
+```
+
+```{r load data}
+candidate_data <- read.csv(file = "Data_cleaning_pt_3/new_merged_results.csv")
+```
+
+```{r}
+# Set categorical variables as factors
+candidate_data <- candidate_data %>% 
+  mutate(across(c(Office, office, party, year), as.factor))
+```
+
+```{r}
+# Find total amount and mean of expenditures for each candidate
+candidate_data <- candidate_data %>%
+  group_by(Candidate) %>%
+  mutate(total_expenditure = sum(amount, na.rm = TRUE),
+         mean_expenditure = mean(amount, na.rm = TRUE))
+
+candidate_data <- candidate_data %>%
+  select(Candidate, office, Votes, PercentageOfTotalVotes, year, 
+         amount, party, total_expenditure, mean_expenditure)
+```
+
+```{r full}
+#make this example reproducible
+set.seed(50)
+
+total_and_mean <- candidate_data %>% group_by(Candidate) %>% 
+  distinct(Candidate, office, party, year, PercentageOfTotalVotes, 
+           total_expenditure, mean_expenditure)
+
+#use 80% of dataset as training set and 20% as test set
+sample <- sample(c(TRUE, FALSE), nrow(total_and_mean), replace=TRUE, prob=c(0.80,0.20))
+train1 <- total_and_mean[sample,]
+test1 <- total_and_mean[!sample,]
+```
+
+```{r}
+
+fit1 <- lm(PercentageOfTotalVotes ~ total_expenditure + mean_expenditure, data = train1)
+summary(fit1)
+```
+
+```{r}
+# Make predictions
+predictions <- fit1 %>% predict(test1)
+# Model performance
+# (a) Compute the prediction error, RMSE
+rmse(predictions, test1$PercentageOfTotalVotes)
+```
+
+```{r total expenditures}
+data_with_total <- candidate_data %>% group_by(Candidate) %>% 
+  distinct(Candidate, party, PercentageOfTotalVotes, total_expenditure)
+
+#make this example reproducible
+set.seed(50)
+
+#use 75% of dataset as training set and 25% as test set
+sample <- sample(c(TRUE, FALSE), nrow(data_with_total), replace=TRUE, prob=c(0.80,0.20))
+train2 <- data_with_total[sample,]
+test2 <- data_with_total[!sample,]
+```
+
+```{r}
+fit2 <- lm(PercentageOfTotalVotes ~ total_expenditure, data = train2)
+summary(fit2)
+```
+
+```{r}
+# Make predictions
+predictions <- fit2 %>% predict(test2)
+# Model performance
+# (a) Compute the prediction error, RMSE
+rmse(predictions, test2$PercentageOfTotalVotes)
+```
+
+```{r mean expenditures}
+data_with_mean <- candidate_data %>% group_by(Candidate) %>% 
+  distinct(Candidate, party, PercentageOfTotalVotes, mean_expenditure)
+
+#make this example reproducible
+set.seed(50)
+
+#use 75% of dataset as training set and 25% as test set
+sample <- sample(c(TRUE, FALSE), nrow(data_with_mean), replace=TRUE, prob=c(0.80,0.20))
+train3 <- data_with_mean[sample,]
+test3 <- data_with_mean[!sample,]
+```
+
+```{r}
+plot(log(train3$mean_expenditure), log(train3$PercentageOfTotalVotes))
+
+fit3 <- lm(PercentageOfTotalVotes ~ mean_expenditure, data = train3)
+summary(fit3)
+```
+
+```{r}
+cor(train3$mean_expenditure, train3$PercentageOfTotalVotes)
+```
+
+```{r}
+cor(train2$total_expenditure, train2$PercentageOfTotalVotes)
+```
+
+```{r}
+plot(log(train2$total_expenditure), train2$PercentageOfTotalVotes)
+```
+
+```{r}
+plot(fit2, which = 1)
+```
+
+```{r}
+# Make predictions
+predictions <- fit1 %>% predict(test1)
+# Model performance
+# (a) Compute the prediction error, RMSE
+rmse(predictions, test1$PercentageOfTotalVotes)
+
+# Another way to calculate
+sqrt(mean((test1$PercentageOfTotalVotes - predictions)^2))
+```

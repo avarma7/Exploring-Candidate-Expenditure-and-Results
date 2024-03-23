@@ -1,0 +1,145 @@
+---
+title: "Random Forest Regression for Predicting Election Results"
+format: html
+---
+```{r}
+library(tidyverse)
+library(randomForest)
+
+# Read campaign expenditures data
+campaign_expenditures <- read_csv("Data_cleaning_pt_3/new_merged_results.csv")
+
+# Perform target encoding on office
+campaign_expenditures_encoded <- campaign_expenditures %>% 
+  group_by(Office) %>%
+  summarize(target_encode_office = mean(PercentageOfTotalVotes))
+
+# Perform target encoding on party
+campaign_expenditures_encoded_2 <- campaign_expenditures %>% 
+  group_by(party) %>%
+  summarize(target_encode_party = mean(PercentageOfTotalVotes))
+
+# Join encoded variables to original dataset
+campaign_expenditures <- campaign_expenditures %>% 
+  left_join(campaign_expenditures_encoded)
+
+campaign_expenditures <- campaign_expenditures %>% 
+  left_join(campaign_expenditures_encoded_2)
+
+# Find total amount of expenditures for each candidate, and include other predictors
+candidate_expenditures <- campaign_expenditures %>% 
+  group_by(Candidate) %>%
+  summarize(total_expenditure = sum(amount, na.rm = TRUE), 
+            votes_percent = mean(PercentageOfTotalVotes, na.rm = TRUE),
+            avg_amount = mean(amount, na.rm = TRUE),
+            office = mean(target_encode_office, na.rm = TRUE),
+            party = mean(target_encode_party))
+
+# Split the data into training and testing sets (80-20 split)
+set.seed(50) # for reproducibility
+train_indices <- sample(1:nrow(candidate_expenditures), 0.8 * nrow(candidate_expenditures))
+train_data <- candidate_expenditures[train_indices, ]
+test_data <- candidate_expenditures[-train_indices, ]
+
+# Create the random forest regression model
+rf_model_office <- randomForest(votes_percent ~ total_expenditure + office, data = train_data)
+
+# Make predictions
+predictions_office <- predict(rf_model_office, newdata = test_data)
+rmse_office <- sqrt(mean((predictions_office - test_data$votes_percent)^2))
+
+# Create the random forest regression model
+rf_model_party <- randomForest(votes_percent ~ total_expenditure + party, data = train_data)
+
+# Make predictions
+predictions_party <- predict(rf_model_party, newdata = test_data)
+rmse_party <- sqrt(mean((predictions_party - test_data$votes_percent)^2))
+
+# Create the random forest regression model
+rf_model_both <- randomForest(votes_percent ~ total_expenditure + party + office, data = train_data)
+
+# Make predictions
+predictions_both <- predict(rf_model_both, newdata = test_data)
+rmse_both <- sqrt(mean((predictions_both - test_data$votes_percent)^2))
+```
+```{r}
+print('Results with office target encoding:')
+print(rmse_office)
+
+print('Results with party target encoding:')
+print(rmse_party)
+
+print('Results with both:')
+print(rmse_both)
+```
+
+```{r}
+library(tidyverse)
+
+election_data <- read_csv("Data_cleaning_pt_3/new_merged_results.csv")
+
+
+# Find total amount of expenditures for each candidate
+candidate_expenditures <- election_data %>% 
+  group_by(Candidate) %>%
+  summarize(total_expenditure = sum(amount, na.rm = TRUE), 
+            votes_percent = mean(PercentageOfTotalVotes),
+            avg_amount = mean(amount))
+
+# Split the data into training and testing sets (80-20 split)
+set.seed(50) # for reproducibility
+train_indices <- sample(1:nrow(candidate_expenditures), 0.8 * nrow(candidate_expenditures))
+train_data <- candidate_expenditures[train_indices, ]
+test_data <- candidate_expenditures[-train_indices, ]
+```
+
+```{r, eval=FALSE}
+library(randomForest)
+
+# Create the random forest regression model
+rf_model <- randomForest(votes_percent ~ total_expenditure, data = train_data)
+
+predictions <- predict(rf_model, newdata = test_data)
+rmse <- sqrt(mean((predictions - test_data$votes_percent)^2))
+print(rmse)
+```
+
+```{r}
+library(stats)
+
+filtered_data <- candidate_expenditures %>%
+  filter(total_expenditure > 1000)
+
+train_indices_2 <- sample(1:nrow(filtered_data), 0.8 * nrow(filtered_data))
+train_data_2 <- filtered_data[train_indices, ]
+test_data_2 <- filtered_data[-train_indices, ]
+
+lm_model <- lm(votes_percent ~ avg_amount + total_expenditure, data = train_data)
+
+predictions <- predict(lm_model, newdata = test_data)
+
+rmse <- sqrt(mean((predictions - candidate_expenditures$votes_percent)^2))
+print(rmse)
+
+lm_model_2 <- lm(votes_percent ~ avg_amount + total_expenditure, data = train_data_2)
+
+predictions_2 <- predict(lm_model_2, newdata = test_data_2)
+
+rmse <- sqrt(mean((predictions_2 - candidate_expenditures$votes_percent)^2))
+print(rmse)
+```
+
+```{r}
+correlation <- cor(filtered_data$votes_percent, filtered_data$total_expenditure)
+
+# Print correlation coefficient
+print(paste("Correlation coefficient:", correlation))
+
+# Create scatter plot
+plot(filtered_data$total_expenditure, filtered_data$votes_percent,
+     xlab = "Total Expenditure",
+     ylab = "Percent of Votes")
+
+# Add trendline (optional)
+abline(lm(filtered_data$votes_percent ~ filtered_data$total_expenditure), col = "red")
+```
