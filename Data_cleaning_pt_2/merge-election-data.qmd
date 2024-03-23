@@ -1,0 +1,69 @@
+---
+title: "Merging Election Results Data"
+format: html
+---
+
+```{R setup, include=FALSE}
+library(dplyr)
+```
+
+```{R Merging County Data 2014-2023}
+# load in county datasets
+data_2014 <- read.csv("model_data/2014_allcounties.csv")
+data_2015 <- read.csv("model_data/2015_allcounties.csv")
+data_2016 <- read.csv("model_data/2016_allcounties.csv")
+data_2017 <- read.csv("model_data/2017_allcounties.csv")
+data_2018 <- read.csv("model_data/2018_allcounties.csv")
+data_2019 <- read.csv("model_data/2019_allcounties.csv")
+data_2020 <- read.csv("model_data/2020_allcounties.csv")
+data_2021 <- read.csv("model_data/2021_allcounties.csv")
+data_2022 <- read.csv("model_data/2022_allcounties.csv")
+data_2023 <- read.csv("model_data/2023_allcounties.csv")
+
+# add year column to each dataset
+data_2014_with_year <- data_2014 %>%
+  mutate(year = "2014")
+
+data_2015_with_year <- data_2015 %>%
+  mutate(year = "2015")
+
+data_2016_with_year <- data_2016 %>%
+  mutate(year = "2016")
+
+data_2017_with_year <- data_2017 %>%
+  mutate(year = "2017")
+
+data_2018_with_year <- data_2018 %>%
+  mutate(year = "2018")
+
+data_2019_with_year <- data_2019 %>%
+  mutate(year = "2019")
+
+data_2020_with_year <- data_2020 %>%
+  mutate(year = "2020")
+
+data_2021_with_year <- data_2021 %>%
+  mutate(year = "2021")
+
+data_2022_with_year <- data_2022 %>%
+  mutate(year = "2022")
+
+data_2023_with_year <- data_2023 %>%
+  mutate(year = "2023")
+
+datasets = list(data_2014_with_year, data_2015_with_year,
+                data_2016_with_year, data_2017_with_year,
+                data_2018_with_year, data_2019_with_year, 
+                data_2020_with_year, data_2021_with_year, 
+                data_2022_with_year, data_2023_with_year)
+
+# join county data for all years
+election_results <- bind_rows(datasets)
+
+```
+
+```{R}
+dim(election_results)
+
+write.csv(election_results, "total_election_results.csv")
+```
