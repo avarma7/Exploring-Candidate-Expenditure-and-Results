@@ -1,0 +1,306 @@
+---
+title: "Political Campaign Expenditures"
+output: 
+  flexdashboard::flex_dashboard:
+    theme:
+      version: 4
+      bootswatch: lux
+    social: menu
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(cache = TRUE)
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(shiny)
+library(highcharter)
+```
+
+```{r}
+knitr::opts_chunk$set(cache = TRUE)
+
+thm <- 
+  hc_theme(
+    colors = c("#1a6ecc", "black", "#90ed7d"),
+    chart = list(
+      backgroundColor = "transparent",
+      style = list(fontFamily = "Helvetica")
+    ),
+    xAxis = list(
+      gridLineWidth = 1
+    )
+  )
+
+Data = read_csv("Base_Data.csv")
+```
+
+Summary Statistics
+================================
+
+Column {data-width=100}
+-------------------------------------
+
+```{r}
+sliderInput("year", label = "Year:",
+            min = 2007, max = 2024, value = c(2007,2024), step = 1, ticks=F, sep="")
+
+selectInput("layer", label = "Other Totals",
+            choices = c("Party", "Recipient"), selected = "Party")
+
+inputPanel(checkboxInput("code1", label = "Add Total Line On Party Graph (Represents The Total Expendtiures For Each Year Including all Parties and Expeditures With NA For Party", value = FALSE))
+```
+
+Column
+-------------------------------------
+
+### These graphs explore the question: How Do Expenditures Vary by Party and Recipient?
+
+```{r, cache=FALSE}
+renderPlot({ 
+  df_1 = Data %>%
+    filter(election_year <= input$year[2]) %>%
+    filter(election_year >= input$year[1])
+  
+  df1 = df_1 %>%
+    group_by(election_year) %>% 
+    summarise(total_Amount = sum(amount)/1000)
+
+  df2 = df_1 %>%
+    drop_na(party)%>%
+    filter(party != "AMERICAN HERITAGE")%>%
+    filter(party != "CONSTITUTION")%>%
+    filter(party != "NONE")%>%
+    filter(party != "OTHER")%>%
+    filter(party != "WORKERS WORLD")%>%
+    filter(party != "GREEN")%>%
+    filter(party != "INDEPENDENT")%>%
+    filter(party != "LIBERTARIAN")%>%
+    group_by(election_year, party) %>%
+    summarise(Amount = sum(amount)/1000)
+
+  df_1.1_graph <- merge(x=df1,y=df2, 
+             by="election_year", all.x=TRUE)
+  
+  df_1.2_graph = df_1 %>%
+    drop_na(recipient_state)%>%
+    mutate(location = recipient_state == "WA") %>%
+    group_by(election_year, location) %>%
+    summarise(Amount = sum(amount)/1000)
+  
+  if (input$layer == "Party") {
+      ggplot(df_1.1_graph, aes(election_year, y=Amount, fill=party))+
+      geom_col()+
+      ggtitle("Party Expenditures") +
+      ylab("Amount (In Thousands)") +
+      xlab("Election Year") +
+      labs(fill='Party') +
+      scale_fill_manual(values = c("REPUBLICAN" = 'red3', "DEMOCRATIC" = 'blue3', "NON PARTISAN" = 'green3')) +
+      theme(plot.title = element_text(size=24, hjust = 0.5, color="black"),
+        legend.title=element_text(size=14, color="black", hjust = 0.5),
+        legend.text=element_text(size=12, color="black",),
+        axis.title.x=element_text(size=18, color="black"),
+        axis.title.y = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black")
+      ) +
+      if(input$code1){
+        geom_line(aes(election_year, y=total_Amount))
+      }
+    }
+    else if (input$layer == "Recipient") {
+      ggplot(df_1.2_graph, aes(x=election_year,y=Amount, color = location))+
+      geom_line() +
+      ggtitle("Expenditures Based on Recipient State") +
+      ylab("Amount (In Thousands)") +
+      xlab("Election Year") +
+      labs(color='Recipient State is Washington') +
+      theme(plot.title = element_text(size=24, hjust = 0.5, color="black"),
+        legend.title=element_text(size=14, color="black", hjust = 0.5),
+        legend.text=element_text(size=12, color="black",),
+        axis.title.x=element_text(size=18, color="black"),
+        axis.title.y = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black")
+        )
+    }
+})
+```
+
+Explore Largest Spenders
+================================
+
+Column {data-width=100}
+-------------------------------------
+```{r}
+#selectInput("year", label = "Year:",
+            #choices = seq(2008, 2022, 1), selected = 2022)
+
+sliderInput("year2", label = "Year:",
+            min = 2007, max = 2024, value = c(2007,2024), step = 1, ticks=F, sep="")
+
+sliderInput("top_n", label = "Ranked n Largest",
+            min = 1, max = 43, value = c(2,6), step = 1, ticks=F, sep="")
+
+selectInput("layer2", label = "Measurement (If Total is selceted all amounts are in thousands",
+            choices = c("Total", "Mean", "Median"), selected = "Total")
+
+```
+
+
+Column {.tabset}
+-------------------------------------
+
+### How Do Total Expenditures Vary by Office?
+
+```{r, cache=FALSE}
+renderPlot({ 
+    if(input$layer2 == "Total"){
+      df_2.1_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(office) %>%
+      summarise(Amount = sum(amount)) %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+    }
+    else if (input$layer2 == "Median"){
+      df_2.1_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(election_year, office) %>%
+      summarise(Amount = sum(amount)) %>%
+      group_by(office) %>%
+      summarise(Amount = median(Amount))  %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+    }
+    else if (input$layer2 == "Mean"){
+      df_2.1_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(election_year, office) %>%
+      summarise(Amount = sum(amount)) %>%
+      group_by(office) %>%
+      summarise(Amount = mean(Amount))  %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+      }
+  ggplot(df_2.1_graph, aes(x=reorder(office, Amount), y=Amount))+
+    geom_bar(stat = "identity")+
+    coord_flip() +
+  ggtitle("Expenditures By Office")+
+  xlab("Office") +
+  ylab("Amount") +
+  theme(plot.title = element_text(size=24, hjust = 0.5, color="black"),
+        axis.title.x=element_text(size=18, color="black"),
+        axis.title.y = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black")
+        )
+})
+```
+
+### How Do Total Expenditures Vary by Reason Code?
+```{r, cache=FALSE}
+renderPlot({ 
+   if(input$layer2 == "Total"){
+     df_2.2_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(code) %>%
+      summarise(Amount = sum(amount)) %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+   }
+   else if(input$layer2 == "Mean"){
+     df_2.2_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(election_year, code) %>%
+      summarise(Amount = sum(amount)) %>%
+      group_by(code) %>%
+      summarise(Amount = mean(Amount))  %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+   }
+   else if(input$layer2 == "Median"){
+     df_2.2_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(election_year, code) %>%
+      summarise(Amount = sum(amount)) %>%
+      group_by(code) %>%
+      summarise(Amount = median(Amount))  %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+   }
+  
+  ggplot(df_2.2_graph, aes(x=reorder(code, Amount), y=Amount))+
+    geom_bar(stat = "identity") +
+    coord_flip() +
+  ggtitle("Expenditures By Reason Code")+
+  labs(caption = "*Inkind contribution means a non-cash contribution of goods or a service \n *PAC stands for Political Action Committee") +
+  xlab("Reason Code") +
+  ylab("Amount ") +
+  theme(plot.title = element_text(size=24, hjust = 0.5, color="black"),
+        axis.title.x=element_text(size=18, color="black"),
+        axis.title.y = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black")
+        )
+})
+```
+
+### How Do Total Expenditures Vary by County?
+```{r, cache=FALSE}
+renderPlot({
+  if(input$layer2 == "Total"){
+    df_2.3_graph = Data %>%
+    filter(election_year <= input$year2[2]) %>%
+    filter(election_year >= input$year2[1]) %>%
+    group_by(jurisdiction_county) %>%
+    summarise(Amount = sum(amount)) %>%
+    arrange(desc(Amount)) %>%
+    slice(input$top_n[1]:input$top_n[2])
+  }
+  else if(input$layer2 == "Mean"){
+      df_2.3_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(election_year, jurisdiction_county) %>%
+      summarise(Amount = sum(amount)) %>%
+      group_by(jurisdiction_county) %>%
+      summarise(Amount = mean(Amount))  %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+  }
+  else if(input$layer2 == "Median"){
+      df_2.3_graph = Data %>%
+      filter(election_year <= input$year2[2]) %>%
+      filter(election_year >= input$year2[1]) %>%
+      group_by(election_year, jurisdiction_county) %>%
+      summarise(Amount = sum(amount)) %>%
+      group_by(jurisdiction_county) %>%
+      summarise(Amount = median(Amount))  %>%
+      arrange(desc(Amount)) %>%
+      slice(input$top_n[1]:input$top_n[2])
+  }
+  ggplot(df_2.3_graph, aes(x=reorder(jurisdiction_county, Amount), y=Amount))+
+    geom_bar(stat = "identity") +
+    coord_flip() +
+    ggtitle("Expenditures By County")+
+  xlab("County") +
+  ylab("Amount") +
+  theme(plot.title = element_text(size=24, hjust = 0.5, color="black"),
+        axis.title.x=element_text(size=18, color="black"),
+        axis.title.y = element_text(size = 18, color = "black"),
+        axis.text.x = element_text(size = 12, color = "black"),
+        axis.text.y = element_text(size = 12, color = "black")
+        )
+})
+```
+

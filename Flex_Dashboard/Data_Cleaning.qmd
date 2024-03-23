@@ -1,0 +1,27 @@
+---
+title: "Data Cleaning For Summary and Visualization"
+format: html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(tidyverse)
+```
+
+```{r Original_Dataset}
+Data_original = read_csv("Expenditures_by_Candidates_and_Political_Committees.csv")
+colnames(Data_original)
+nrow(Data_original)
+```
+
+```{r Basic_cleaning}
+Base_data = Data_original %>%
+# Getting rid of the report_number, origin, committee_id, legislative_district,position, filer_id, filer_name, ballot_number, for_or_against, jurisdiction, expenditure_date, itemized_or_non_itemized, description, recipient_name, recipient_city, "recipient_zip recipient_address, URL, recipient_location, payee, and creditor, columns
+  select("id","type", "office", "party", "jurisdiction_county","jurisdiction_type", "election_year", "amount", "code", "recipient_state", "itemized_or_non_itemized") %>%
+  
+#Filter out all reports for expenditures less than a dollar
+  filter(amount > 1.00)
+write_csv(Base_data, "Base_Data.csv")
+```
+
