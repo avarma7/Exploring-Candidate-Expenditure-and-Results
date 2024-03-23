@@ -1,0 +1,19 @@
+---
+title: "User Guide For Running Flex Dashboard files"
+format: html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+```
+* The files that create a flex dashboard are: 
+    + Flex_498_Project.rmd
+    + Dashboard_pg_1.rmd
+    + Dashboard_pg_2.rmd
+    + Dashboard_pg_3.rmd
+    
+* Running any of these files will create a new folder with a cache
+* To run these files:
+    + The Base_Data.csv file must be in this folder/current working directory
+    + Press the run document button, located where the render button would be in a quarto doc (or where the knit button whould be in an rmd file)

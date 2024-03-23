@@ -1,0 +1,29 @@
+---
+title: "Description of Files in This Folder"
+format: html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(tidyverse)
+```
+* To run the Data_Cleaning file it requires you to have the "Expenditures_by_Candidates_and_Political_Committees.csv" file on your own server (The file is over 300 MB and too big to load into git).
+    + If you have the file you can run Data_Cleaning.qmd to overwrite the Base_Data.csv in this folder (all other files require a Base_Data.csv data set to run)
+    + If you do not have the csv file there is a Base_Data.csv data set included 
+    
+* Flex_498 has these files stacked/added together:
+    + Dashboard_pg_1
+    + Dashboard_pg_2
+    + Dashboard_pg_3
+    
+* These files are just for trying out ideas, or intermediate files that have since been added into the dashboard files:
+    + data_exploration.rmd
+    + Double_checks_for_flex_pg_2_and_3.qmd
+    
+### Note:
+Running any dashboard or flex file will create a new folder with a cache
+    
+
+
+    
